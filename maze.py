@@ -5,20 +5,13 @@ from enum import Enum
 
 
 class cardinals:
-
     NORTH = u'\u2191'
     EAST = u'\u2192'
     SOUTH = u'\u2193'
     WEST = u'\u2190'
 
 
-class policyBlock:
-    N_val = 0
-    E_val = 0
-    S_val = 0
-    W_val = 0
-
-
+# Manual setup of the maze.
 values = np.zeros((5, 5))
 values[0, 0] = 1  # the complation
 values[1, 0] = -.67  # the termination
@@ -33,14 +26,14 @@ col_len = values.shape[1]
 
 discount_factor = 0.8
 
+# check to see if direction is a wall
+
 
 def getDirVal(direction):
     row, col = direction
-    #print("checking " + str(row) + " " + str(col))
     if (row < 0 or col < 0 or row >= row_len or col >= col_len):
         return 0
     else:
-        #print("it is " + str(values[row, col]))
         return values[row, col]
 
 # this calculates the value of an action, accounting for probability
@@ -59,6 +52,8 @@ def calc_action_value(direction, dir_vals):
     if direction == cardinals.WEST:
         return n_val * 0.1 + e_val * 0.1 + s_val * 0.1 + w_val * 0.7
 
+# inspect all four directions for values
+
 
 def get_dir_vals(row, col):
     north_grid = (row - 1, col)
@@ -72,6 +67,8 @@ def get_dir_vals(row, col):
     w_val = getDirVal(west_grid)
 
     return (n_val, e_val, s_val, w_val)
+
+# see which direction has the max value
 
 
 def get_best_direction(dir_vals):
@@ -94,7 +91,6 @@ def get_best_direction(dir_vals):
 
 
 def update_cell_val(row, col):
-    # check all four with equal probability
 
     # do not run the code on the reward/loss cells
     if values[row, col] <= -.5 or values[row, col] == 1:
@@ -120,7 +116,6 @@ def check_converge(values, values2):
 def run_iteration(values):
 
     prev_val_copy = np.zeros((5, 5))
-    # while there is no convergence
     print_count = 0
 
     while check_converge(values, prev_val_copy) is False:
@@ -136,7 +131,8 @@ def run_iteration(values):
         print_count = print_count + 1
 
     print(values)
-    # returns the value of all four directions
+
+# gets the policy once the valuation has converged
 
 
 def extractPolicy(values):
