@@ -173,7 +173,7 @@ class Maze:
 
 # Manual setup of the maze.
 values = np.zeros((5, 5))
-values[0, 0] = 1  # the complation
+values[0, 0] = 1  # the completion
 values[1, 0] = -.67  # the termination
 values[3, 1] = -.7
 values[3, 2] = -.7
