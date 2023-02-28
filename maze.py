@@ -13,10 +13,12 @@ class cardinals:
 
 class Maze:
 
-    def __init__(self, values, policy, discount_factor):
+    def __init__(self, values, policy, discount_factor, reward_val, punish_val):
         # check to see if direction is a wall
         self.values = values
         self.valuesPrev = None
+        self.reward_val = reward_val
+        self.punish_val = punish_val
 
         # initialize the policy grid to default values
         self.policyGrid = policy
@@ -27,103 +29,124 @@ class Maze:
         self.discount_factor = discount_factor
         self.iteration = 0
 
-    def getDirVal(self, direction):
-        row, col = direction
-        if (row < 0 or col < 0 or row >= self.row_len or col >= self.col_len):
-            return 0
-        else:
-            return values[row, col]
-
     # this calculates the value of an action, accounting for probability
-    # the probability of moving in the same direction as an action is .7
-    # the other directions will be .1
+    def calc_action_value_iter(self, direction, legal_dirs):
 
-    def calc_action_value_iter(self, direction, dir_vals):
-        (n_val, e_val, s_val, w_val) = dir_vals
-        if direction == cardinals.NORTH:
-            return n_val * 0.7 + e_val * 0.1 + s_val * 0.1 + w_val * 0.1
-        if direction == cardinals.EAST:
-            return n_val * 0.1 + e_val * 0.7 + s_val * 0.1 + w_val * 0.1
-        if direction == cardinals.SOUTH:
-            return n_val * 0.1 + e_val * 0.1 + s_val * 0.7 + w_val * 0.1
-        if direction == cardinals.WEST:
-            return n_val * 0.1 + e_val * 0.1 + s_val * 0.1 + w_val * 0.7
+        main_dir_val = legal_dirs[direction]
+
+        other_legal_dirs = dict(legal_dirs)
+        other_legal_dirs.pop(direction)
+        other_dir_vals = other_legal_dirs.values()
+        n_other_dirs = len(other_legal_dirs)
+
+        # probability of moving in main direction vs other directions
+        main_dir_prob = .7
+        secondary_dir_prob = .3 / n_other_dirs
+
+        other_sum = 0
+        for x in other_dir_vals:
+            other_sum = other_sum + (x * secondary_dir_prob)
+
+        return main_dir_val * main_dir_prob + other_sum
+
+    # append to a dictionary the value of a legal action
+    # also checks for validity of action
+    def get_dir_val(self, t1, direction, legal_dirs):
+        row_t1, col_t1 = t1
+        if (row_t1 < 0 or col_t1 < 0 or row_t1 >= self.row_len or col_t1 >= self.col_len):
+            # Illegal move. nothing appended
+            return legal_dirs
+        else:
+            # update the dict properly
+            legal_dirs[direction] = values[row_t1, col_t1]
+            return legal_dirs
 
     # inspect all four directions for values
     def get_dir_vals(self, row, col):
+
         north_grid = (row - 1, col)
         east_grid = (row, col + 1)
         south_grid = (row + 1, col)
         west_grid = (row, col - 1)
 
-        n_val = self.getDirVal(north_grid)
-        e_val = self.getDirVal(east_grid)
-        s_val = self.getDirVal(south_grid)
-        w_val = self.getDirVal(west_grid)
+        # track legal direction moves and return it as a dict
+        legal_dirs = dict.fromkeys(
+            [cardinals.NORTH, cardinals.EAST, cardinals.SOUTH, cardinals.WEST])
 
-        return (n_val, e_val, s_val, w_val)
+        legal_dirs = self.get_dir_val(north_grid, cardinals.NORTH, legal_dirs)
+        legal_dirs = self.get_dir_val(east_grid, cardinals.EAST, legal_dirs)
+        legal_dirs = self.get_dir_val(south_grid, cardinals.SOUTH, legal_dirs)
+        legal_dirs = self.get_dir_val(west_grid, cardinals.WEST, legal_dirs)
+
+        # elimate the Nones
+        legal_dirs = {k: v for k, v in legal_dirs.items() if v is not None}
+
+        return legal_dirs
 
     # see which direction has the max value
-    def get_best_direction(self, dir_vals):
+    def get_best_direction(self, legal_dirs):
 
-        (n_val, e_val, s_val, w_val) = dir_vals
-
-        max_val = max(n_val, e_val, s_val, w_val)
-        best_direction = None
-
-        if (max_val == n_val):
-            best_direction = cardinals.NORTH
-        if (max_val == e_val):
-            best_direction = cardinals.EAST
-        if (max_val == s_val):
-            best_direction = cardinals.SOUTH
-        if (max_val == w_val):
-            best_direction = cardinals.WEST
-
+        best_direction = max(legal_dirs, key=legal_dirs.get)
         return best_direction
 
-    def update_cell_val(self, row, col, policyIterate=False):
+    # get direction from POLICY, not values
+    def update_cell_val_by_policy(self, row, col):
 
-        # do not run the code on the reward/loss cells
-        if self.values[row, col] <= -.5 or self.values[row, col] == 1:
+        if self.values[row, col] in (self.punish_val, self.reward_val):
             return
 
-        dir_vals = self.get_dir_vals(row, col)
+        # get values in each direction based off of iterating values
+        legal_dirs = self.get_dir_vals(row, col)
 
-        if policyIterate is False:
-            best_direction = self.get_best_direction(dir_vals)
-            # update section
-            self.values[row, col] = self.calc_action_value_iter(
-                best_direction, dir_vals) * self.discount_factor
-        else:  # policyIterate is True
-            # get direction from POLICY, not values
-            # then do the action using a different cal_action-value
-            cell_policy_dir = self.policyGrid[row, col]
-            cell_val = self.calc_action_value_iter(cell_policy_dir, dir_vals)
+        # then take the action based off iterating policy
+        cell_policy_dir = self.policyGrid[row, col]
 
-            # updated the values based on the policy
-            self.values[row, col] = cell_val * self.discount_factor
+        # update values based off of iteration
+        self.values[row, col] = self.calc_action_value_iter(
+            cell_policy_dir, legal_dirs) * self.discount_factor
 
-    def check_converge(self, arr1, arr2, isValPol=False):
-        if isValPol is True:
-            if (np.array_equal(arr1, arr2)):
-                print("the policy grids are the same")
+    # update cell values based off of best value
+    def update_cell_val(self, row, col):
+        # do not run the code on the reward/loss cells
+        if self.values[row, col] in (self.punish_val, self.reward_val):
+            return
+
+        # get values of each legal direction
+        legal_dirs = self.get_dir_vals(row, col)
+
+        # return best direction
+        best_direction = self.get_best_direction(legal_dirs)
+
+        # update values based off of iteration
+        self.values[row, col] = self.calc_action_value_iter(
+            best_direction, legal_dirs) * self.discount_factor
+
+    # check convergence of policy
+    def check_converge_policy(self, arr1, arr2):
+        if (np.array_equal(arr1, arr2)):
+            print("the policy grids are the same")
+            return True
+        else:
+            print("the policy grids are NOT the same")
+            return False
+
+    # check convergence of value
+    def check_converge_values(self, arr1, arr2):
+        if arr2 is not None:
+            if (np.allclose(arr1, arr2, 0.001)):
+                print("the value grids are the same")
                 return True
             else:
-                print("the policy grids are NOT the same")
                 return False
-
-        elif (np.allclose(arr1, arr2, 0.01)):
-            print("the value grids are the same")
-            return True
         else:
             print("the value grids are NOT the same")
             return False
 
+    # value iteration main loop
     def valueIteration(self):
-        self.valuesPrev = np.zeros((5, 5))
-
-        while self.check_converge(self.values, self.valuesPrev) is False:
+        while self.check_converge_values(self.values, self.valuesPrev) is False:
+            print("value iteration " + str(self.iteration))
+            print(self.values)
 
             # store previous values
             self.valuesPrev = np.copy(self.values)
@@ -132,36 +155,33 @@ class Maze:
                 for col in range(self.col_len):
                     self.update_cell_val(row, col)
 
-            print("iteration " + str(self.iteration))
             self.iteration = self.iteration + 1
 
-        print(self.values)
+    # policy iteration main loop
+    def policyIteration(self):
 
-    # gets the policy once the valuation has converged
+        while self.check_converge_policy(self.policyGrid, self.policyGridPrev) is False:
+            print("policy iteration " + str(self.iteration))
+            print(self.policyGrid)
 
-    def valuePolicyIteration(self):
-
-        print(self.policyGrid, self.policyGridPrev)
-
-        while self.check_converge(self.policyGrid, self.policyGridPrev, isValPol=True) is False:
-
+            # copy of previous grid to check comparison
             self.policyGridPrev = np.copy(self.policyGrid)
 
+            # edit each cell
             for row in range(self.row_len):
                 for col in range(self.col_len):
-                    # True triggers the policy/val iter
-                    # This means we will take the action based off initial random policy
-                    self.update_cell_val(row, col, True)
+                    self.update_cell_val_by_policy(row, col)
                     dir_vals = self.get_dir_vals(row, col)
+
                     self.policyGrid[row, col] = self.get_best_direction(
                         dir_vals)
 
-            print("reached")
-            print("iteration " + str(self.iteration))
             self.iteration = self.iteration + 1
-        print(self.policyGrid)
 
+    # extract the policy after value or policy iteration
     def extractPolicy(self):
+
+        # look in each of the grids for best direction and return it
         self.policyGrid = np.empty((5, 5), dtype=object)
         for row in range(self.row_len):
             for col in range(self.col_len):
@@ -171,31 +191,36 @@ class Maze:
         return self.policyGrid
 
 
+''' MAIN CODE '''
 # Manual setup of the maze.
 values = np.zeros((5, 5))
-values[0, 0] = 1  # the complation
-values[1, 0] = -.67  # the termination
-values[3, 1] = -.7
-values[3, 2] = -.7
-values[2, 3] = -.7
-values[3, 4] = -.7
-values[4, 4] = 1
+
+# custom rewards
+reward_val = 1
+punish_val = -1
+values[0, 0] = reward_val
+values[4, 4] = reward_val
+values[1, 0] = punish_val
+values[3, 1] = punish_val
+values[2, 3] = punish_val
+values[3, 4] = punish_val
 
 policy = np.ndarray((5, 5), dtype=object)
 policy.fill(cardinals.NORTH)
-print(policy)
-print("main code")
+policy[0] = [cardinals.SOUTH] * 5
+
 discount_factor = 0.8
 
-grid = Maze(values, policy, discount_factor)
+grid = Maze(values, policy, discount_factor, reward_val, punish_val)
+
+# Select value or policy iteration here
 # grid.valueIteration()
-grid.valuePolicyIteration()
+grid.policyIteration()
+
 policy = grid.extractPolicy()
 
-print(policy)
-
+''' PLOTTING CODE '''
 fig, ax = plt.subplots()
-# Using matshow here just because it sets the ticks up nicely. imshow is faster.
 ax.matshow(values, cmap='binary_r')
 
 for (i, j), z in np.ndenumerate(values):
@@ -203,5 +228,3 @@ for (i, j), z in np.ndenumerate(values):
 
 plt.title("Maze")
 plt.show()
-
-# something with the anaconda powershell prompt anaconda3, and the Z drive mounting allowed me to run the anaconda env with python in wsl
