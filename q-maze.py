@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import random
+import copy
 
 
 class cardinals:
@@ -12,16 +13,19 @@ class cardinals:
     TERMINATE = "terminate"
 
 
+# Todo: Add value per grid with the policy extraction
+# Disable starting on terminal states
+# tracking reward cells
+# Add best policy arrows
+# Clean print statements
+# add exploration factor
+
 class QMaze:
 
-    def __init__(self, qvalues, reward_grid, discount_factor, learn_rate, epochs):
+    def __init__(self, qvalues, reward_grid, discount_factor, learn_rate, explore_rate, epochs):
 
         self.qvalues = qvalues
         self.reward_grid = reward_grid
-
-        # Warning
-        # hardcoded start grid
-        self.agent_grid = (1, 2)
 
         # Warning
         # WARNING CHANGE THIS IT WILL CAUSE BUGS EVENTUALLY due to hardcoding
@@ -33,9 +37,15 @@ class QMaze:
         self.col_len = reward_grid.shape[1]
         self.discount_factor = discount_factor
         self.learn_rate = learn_rate
-        self.this_epoch = 0
+        self.explore_rate = explore_rate
+
+        self.this_epoch = 1
         self.epoch_goal = epochs
 
+        self.start_grid = (random.choice(range(self.row_len)),
+                           random.choice(range(self.col_len)))
+        self.agent_grid = (random.choice(range(self.row_len)),
+                           random.choice(range(self.col_len)))
         self.terminal_state = False
 
     # append to a dictionary the value of a legal action
@@ -92,7 +102,7 @@ class QMaze:
     # EX (0, 0) -> 0 and (4, 4) -> 24
     def rowcol_to_state(self, grid):
         row, col = grid
-        state_val = (row) * (col + 1) + (col)
+        state_val = (row) * (self.col_len) + (col)
         return state_val
 
     # takes in a direction and state and returns a tuple for the q table
@@ -101,15 +111,6 @@ class QMaze:
         state_val = self.rowcol_to_state(grid)
 
         return (state_val, action_val)
-
-    '''
-    reward_grid[0, 0] = reward_val  is 0
-    reward_grid[4, 4] = reward_val  is 24
-    reward_grid[1, 0] = punish_val  is 5
-    reward_grid[3, 1] = punish_val
-    reward_grid[2, 3] = punish_val
-    reward_grid[3, 4] = punish_val
-    '''
 
     # reached the award/punishment. Terminate or continue
     def is_in_terminal_state(self):
@@ -137,8 +138,7 @@ class QMaze:
         legal_dirs = self.get_dir_vals(row_t0, col_t0)
 
         # explore at random OR
-        prob_explore = .9
-        if random.random() < prob_explore:
+        if self.explore_rate > random.random():
             # explore a random direction
             dir_t0 = random.choice(list(legal_dirs.keys()))
         else:
@@ -154,26 +154,35 @@ class QMaze:
         if dir_t0 == cardinals.WEST:
             row_t1, col_t1 = (row_t0, col_t0 - 1)
 
-        # we need to see the max value if we go in this random direction
-        # we have to maximize over all actions in t+1
+        # go over the random or best choice
         est_opt_future_val_q = legal_dirs[dir_t0]
 
         # gets the place to put the q value in the table
         state, action = self.sa_to_qtable(self.agent_grid, dir_t0)
 
+        '''
+        print("updating cell", state, "taking action", action)
+
+        print("before update:")
+        print("current q: " + str(self.qvalues[state, action]))
+        print("max a for Q: " + str(est_opt_future_val_q))
+        '''
+
         # get the reward value and update it
         self.qvalues[state, action] = self.qvalues[state, action] + \
             self.learn_rate * (
                 self.reward_grid[row_t1, col_t1] +
-                self.discount_factor * est_opt_future_val_q -
+                (self.discount_factor * est_opt_future_val_q) -
                 self.qvalues[state, action]
         )
 
         # the agent has moved. finally move
-        self.agent_grid = row_t1, col_t1
+        # print("after update:")
+        # print("new q: " + str(self.qvalues[state, action]))
+        self.agent_grid = (row_t1, col_t1)
 
-        print("Now the agent is in state: " + str(self.agent_grid) +
-              " having taken action " + dir_t0)
+        # print("Now the agent is in state: " + str(self.agent_grid) +
+        #     " having taken action " + dir_t0)
 
         if self.is_in_terminal_state() is True:
             return True
@@ -193,6 +202,8 @@ class QMaze:
         # Epoch done. Reset for new epoch.
         print("Epoch " + str(self.this_epoch) + " completed.")
         self.this_epoch += + 1
+        self.agent_grid = (random.choice(range(self.row_len)),
+                           random.choice(range(self.col_len)))
         terminal_bool = True
 
     def print_qvalues(self):
@@ -200,17 +211,19 @@ class QMaze:
         print_ls = list()
         for row in range(25):
             print_ls.append(
-                '{0:.1f}'.format(self.qvalues[row, 0]) + ', '
-                '{0:.1f}'.format(self.qvalues[row, 1]) + ', '
-                '{0:.1f}'.format(self.qvalues[row, 2]) + ', '
-                '{0:.1f}'.format(self.qvalues[row, 3]) + ', '
+                "Cell " + str(row) + '\n' +
+                '{0:.2f}'.format(self.qvalues[row, 0]) + '\n'  # North
+                '{0:.2f}'.format(self.qvalues[row, 3]) + '     '  # East
+                '{0:.2f}'.format(self.qvalues[row, 1]) + '\n'  # South
+                '{0:.2f}'.format(self.qvalues[row, 2]) + ''  # West
             )
         print_arr = np.array(print_ls)
         print_arr = np.reshape(print_ls, (5, 5))
+        # print(print_arr)
         return print_arr
 
     def train(self):
-        while self.this_epoch < self.epoch_goal:
+        while self.this_epoch <= self.epoch_goal:
             self.run_epoch()
             print_arr = self.print_qvalues()
             # print(self.qvalues)
@@ -245,22 +258,26 @@ reward_grid[1, 0] = punish_val
 reward_grid[3, 1] = punish_val
 reward_grid[2, 3] = punish_val
 reward_grid[3, 4] = punish_val
+reward_grid[1, 2] = punish_val
 
-discount_factor = 0.8
-learn_rate = .3
-epochs = 50
+discount_factor = 0.7
+learn_rate = .5
+explore_rate = .5
+epochs = 100
 
-grid = QMaze(qvalues, reward_grid, discount_factor, learn_rate, epochs)
+grid = QMaze(qvalues, reward_grid, discount_factor,
+             learn_rate, explore_rate, epochs)
 arr = grid.train()
 
-#policy = grid.extractPolicy()
+# policy = grid.extractPolicy()
 
 ''' PLOTTING CODE '''
 fig, ax = plt.subplots()
-ax.matshow(reward_grid, cmap='binary_r')
+ax.matshow(reward_grid, cmap='summer')
 
 for (i, j), z in np.ndenumerate(arr):
-    ax.text(j, i, z, ha='center', va='center')
+    ax.text(j, i, z, ha='center', va='center',
+            color='blue', fontsize='x-small')
 
 plt.title("Maze")
 plt.show()
