@@ -246,12 +246,15 @@ reward_ls = ((0, 0), (4, 4))
 punish_ls = ((1, 0), (3, 1), (2, 3), (3, 4), (1, 2))
 
 # code for display of grid and hardcoded terminal states editing
+
+
 def edit_array(reward_grid, reward_ls, punish_ls, reward_val, punish_val):
     for elem in reward_ls:
         reward_grid[elem] = reward_val
     for elem in punish_ls:
         reward_grid[elem] = punish_val
     return reward_grid
+
 
 reward_grid = edit_array(reward_grid, reward_ls,
                          punish_ls, reward_val, punish_val)
@@ -263,6 +266,7 @@ policy = grid.extractPolicy()  # policy function
 value = grid.extractValue()  # value function
 
 # and then overwrite the labels (for hardcoded terminal states)
+qarr = edit_array(qarr, reward_ls, punish_ls, reward_val, punish_val)
 value = edit_array(value, reward_ls, punish_ls, reward_val, punish_val)
 policy = edit_array(policy, reward_ls, punish_ls, '', '')
 
