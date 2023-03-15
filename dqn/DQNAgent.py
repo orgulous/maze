@@ -83,6 +83,9 @@ class DQNAgent:
 
     # evaluate the model
     def evaluate(self, num_episodes, tests=5):
+
+        # count number of successful tests
+        success_count = tests
         for test in range(tests):
             obs, _ = self.env.reset()
 
@@ -92,15 +95,15 @@ class DQNAgent:
 
             done = False
             iter = 1
-            success_count = tests
 
-            # if the model doesn't finish in 15 steps, consider it a fail
+            # if the model doesn't finish in (size x 3) steps, consider it a fail
             # go through the action steps
             while not done:
-                if iter > 15:
+                if iter > (self.size * 3):
                     success_count -= 1
+                    break
                 action = self.act(obs, 0)
-                next_obs, _, done, _ = self.env.step(action)
+                next_obs, reward, done, _ = self.env.step(action)
                 obs = next_obs
                 iter += 1
                 #print(np.add(obs[0], obs[1]), '\n')

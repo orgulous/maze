@@ -24,13 +24,14 @@ hidden size: neural net hidden layer size
 gamma: the discount factor of the neural net
 eps values: how epsilon for explore vs exploit will decay
 num_episodes: how many episodes of learning to take into account
+
 '''
 
-size = 10
+size = 5  # WARNING: BECOMES UNSTABLE  size > 6, would need tuning
 env = gw.GridWorldEnv(size=size)
 obs_size = (size * size * 2)
 n_actions = env.action_space.n
-hidden_size = 50
+hidden_size = 20
 
 gamma = 0.95
 eps_start = 1
