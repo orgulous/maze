@@ -21,4 +21,4 @@ Policy Iteration Result
 
 Q Learning Values 
 
-![alt text](https://github.com/orgulous/maze/blob/master/q_learing_values.jpg)
+![alt text](https://github.com/orgulous/maze/blob/master/q_learning_values.jpg)
