@@ -8,5 +8,17 @@ The last example shows an agent moving towards a target. This includes Deep Q Le
 
 I hope you find this code useful in learning how these algorithms work. I made many comments to demonstrate the different steps of the algorithm.
 
+
+Value Iteration Result
+
+![alt text](https://github.com/orgulous/maze/blob/master/value_iter_ex.jpg)
+
+
 Policy Iteration Result
+
 ![alt text](https://github.com/orgulous/maze/blob/master/policy_iter_ex.jpg)
+
+
+Q Learning Values 
+
+![alt text](https://github.com/orgulous/maze/blob/master/q_learing_values.jpg)
