@@ -22,3 +22,6 @@ Policy Iteration Result
 Q Learning Values 
 
 ![q_learning_values](https://github.com/orgulous/maze/assets/12550467/57623a48-af28-47e4-a74d-86c87382f935)
+
+
+![image](https://github.com/orgulous/maze/assets/12550467/79c121fa-e2da-4786-bcdd-c37aa02d53e3)
